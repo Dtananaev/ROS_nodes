@@ -1,9 +1,0 @@
-<launch>
-     <param name="foreign_ip"  value="192.168.1.10"/>
-     <param name="foreign_port"  value="11311"/>
-     <param name="connectCheck_Hz"  value="200"/>
-     <param name="msgsFrequency_Hz"  value="10" />
-     <param name="namespace"  value="relay" />
-    <node name="main" pkg="multimaster" type="main" output="screen">
-    </node>
-</launch>

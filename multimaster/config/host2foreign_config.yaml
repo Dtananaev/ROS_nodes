@@ -1,0 +1,7 @@
+host2foreign:
+  local_pubs:   ["/h1/odometry/filtered"]
+  local_tf:     ["map->h1_base"]
+  foreign_ip: localhost
+  foreign_port: 11311
+  msgs_pub_freq: 40.0
+  namespace: host2foreign

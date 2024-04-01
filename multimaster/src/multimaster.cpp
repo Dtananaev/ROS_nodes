@@ -5,252 +5,168 @@
  *      Author: Denis Tananaev
  */
 
-#include "multimaster/multimaster.h"
+#include <multimaster/multimaster.h>
 
-
-multimaster::multimaster(){
-
-    config_name_ = "config"; 
-    folder_path_ = ros::package::getPath("multimaster"); 
- 
+HFMultimaster::HFMultimaster() : nh(), pnh("~"), Multimaster()
+{
+  setupParam();
+  manager = new HostRelayTopicManager();
+  tf_manager = new HostRelayTFManager();
+  tkeep = new Timekeeper();
 }
 
-multimaster::~multimaster(){
+FHMultimaster::FHMultimaster() : nh(), pnh("~"), Multimaster()
+{
+  setupParam();
+  manager = new ForeignRelayTopicManager();
+  tf_manager = new ForeignRelayTFManager();
+  tkeep = new Timekeeper();
 }
 
-std::string multimaster::foreign_master_uri(){
-    return foreign_master;
+HFMultimaster::~HFMultimaster()
+{
+  delete manager;
+  delete tf_manager;
+  delete tkeep;
 }
 
-bool multimaster::getHostTopicsList(){
-    
- std::ifstream file_stream_topics(folder_path_+"/"+ config_name_ + ".yaml");
-    if (file_stream_topics.is_open()) { // check if file exsist
-         std::string line;
-        std::string parser;
-  
-         while (std::getline(file_stream_topics, line)) {
-            std::istringstream iss(line);
-            getline(iss, parser, ':');
-
-           //get the list of topics from local computer
-            if(parser=="local_pubs"){
-                        std::string delim =",";
-                        auto start=line.find(":")+3;
-                        auto end = line.find(delim);
-                   while(end != std::string::npos){
-
-                      
-                       std::string temp=line.substr(start, end - start);
-                        hostTopicsList.push_back(temp);
-
-                        std::cout << line.substr(start, end - start) << std::endl;
-                        start = end + delim.length();
-                         end = line.find(delim, start);
-                    } 
-                }
-
-                 //get list of transforms from host
-                 if(parser=="local_tf"){
-                        std::string delim =",";
-                        std::string delim_tf ="->";
-                        auto start=line.find(":")+3;
-                        auto split=line.find(delim_tf);
-                        auto end = line.find(delim);
-                   while(end != std::string::npos){
-
-                      
-
-                        tfTransform temp;
-                        temp.from=line.substr(start, split - start);
-       
-                        temp.to=line.substr(split+delim_tf.length(), end-split-delim_tf.length());
-                        hostTfList.push_back(temp);
-
-                         start = end + delim.length();
-                         split=line.find(delim_tf, start);
-                         end = line.find(delim, start);
-                    } 
-                }
-    
-
-
-         }
-         file_stream_topics.close();
-    }else{
-
-       return false;
-    }
-   
-   return true;
-
+FHMultimaster::~FHMultimaster()
+{
+  delete manager;
+  delete tf_manager;
+  delete tkeep;
 }
 
-bool multimaster::getForeignTopicsList(){
-    
- std::ifstream file_stream_topics(folder_path_+"/"+ config_name_ + ".yaml");
-    if (file_stream_topics.is_open()) { // check if file exsist
-         std::string line;
-        std::string parser;
-  
-         while (std::getline(file_stream_topics, line)) {
-            std::istringstream iss(line);
-            getline(iss, parser, ':');
-    
-                 //get the list of topics from foreign computer
-                 if(parser=="foreign_pubs"){
-                        std::string delim =",";
-                        auto start=line.find(":")+3;
-                        auto end = line.find(delim);
-                   while(end != std::string::npos){
-                        getline(iss, parser, ',');
-                   
-                        std::string temp=line.substr(start, end - start);
-                        foreignTopicsList.push_back(temp);
-
-                        std::cout << line.substr(start, end - start) << std::endl;
-                        start = end + delim.length();
-                        end = line.find(delim, start);
-                    } 
-                }
-
-                  //get list of transforms from foreign
-                 if(parser=="foreign_tf"){
-                        std::string delim =",";
-                        std::string delim_tf ="->";
-                        auto start=line.find(":")+3;
-                        auto split=line.find(delim_tf);
-                        auto end = line.find(delim);
-                   while(end != std::string::npos){
-
-                      
-  
-                        tfTransform temp;
-                        temp.from=line.substr(start, split - start);
-                        temp.to=line.substr(split+delim_tf.length(), end-split-delim_tf.length());
-                         std::cout << line.substr(start, split - start) << std::endl;
-                         std::cout << line.substr(split+delim_tf.length(), end-split-delim_tf.length()) << std::endl;
-                        foreignTfList.push_back(temp);
-                      
-
-                         start = end + delim.length();
-                         split=line.find(delim_tf, start);
-                         end = line.find(delim, start);
-                    } 
-                }
-    
-         }
-         file_stream_topics.close();
-    }else{
-
-       return false;
-    }
-   
-   return true;
-
+string HFMultimaster::get_foreign_master_uri()
+{
+  return foreign_master;
 }
 
-
-bool multimaster::getParam(){
-
-     //Read ip adress and port of foreign master from the launch file
-    if(!nh.getParam("foreign_ip",foreign_ip)|| foreign_ip==""){
-      ROS_ERROR_STREAM("PLEASE SPECIFY THE IP ADRESS OF FOREIGN MASTER IN THE LAUNCH FILE");
-     return false;    
-    }else if(! nh.getParam("foreign_port",foreign_port)){
-      ROS_ERROR_STREAM("PLEASE SPECIFY THE PORT  OF FOREIGN MASTER IN THE LAUNCH FILE");
-      return false;    
-    }
-
-    // Get the other parameters from the launch file     
-    nh.param<int>("msgsFrequency_Hz", msgsFrequency_Hz, 10);
-     nh.param<std::string>("namespace", namesp, "intercom2");
-
-
-    
-    //Get the host and foreign master_uri
-        std::stringstream ss;
-        ss <<"http://"<<foreign_ip<<":"<<foreign_port<<"/";
-        foreign_master=ss.str();
-        host_master=ros::master::getURI();
-   
-
-    return true;
+string FHMultimaster::get_foreign_master_uri()
+{
+  return foreign_master;
 }
 
-
-void multimaster::host2foreign(ros::M_string remappings) {
-                  
-     ros::Rate loop_rate(msgsFrequency_Hz);     
-           
-     
-    
-     tf::TransformBroadcaster broadcaster;
-   
-     ros::Time foreign_time=ros::Time::now();
-
-     remappings["__master"] = host_master;
-     ros::master::init(remappings);
-
-     ros::Time host_time=ros::Time::now();
-     ros::Duration difference=host_time-foreign_time; 
-
-    relayTopic pc;
-    for(int i=0; i<hostTopicsList.size();i++){         
-        //Create subscribers in the host and connect them to the foreign topics 
-        pc.subscribe(hostTopicsList[i],namesp, nh); 
-        std::cout<<"hostTopicsList"<<"["<<i<<"]= "<<hostTopicsList[i].c_str()<<"\n";
-    
-    } 
-    remappings["__master"] =  foreign_master;
-    ros::master::init(remappings);
-
-    
-    ros::Duration(0.5).sleep();
-    while(ros::ok() && ros::master::check()==true){
-        ros::spinOnce();
-        loop_rate.sleep();
-
-          for(int i=0; i<hostTfList.size();i++){ 
-            broadcaster.sendTransform(
-            tf::StampedTransform(pc.listen(ros::Time::now()+difference,hostTfList[i].from, hostTfList[i].to)));
-            
-            }
-    }
- }  
-
-
-void multimaster::foreign2host(ros::M_string remappings) {
-         
-  
-    relayTopic pc2;
-  
-     for(int i=0; i<foreignTopicsList.size();i++){         
-    //Create subscribers in the host and connect them to the foreign topics 
-         pc2.subscribe(foreignTopicsList[i],namesp, nh);   
-        std::cout<<"foreignTopicsList"<<"["<<i<<"]= "<<foreignTopicsList[i].c_str()<<"\n";
-    } 
-
-    ros::Time foreign_time=ros::Time::now(); 
-    remappings["__master"] = host_master;
-    ros::master::init(remappings);
-    ros::Time host_time=ros::Time::now();
-    ros::Duration difference=host_time-foreign_time; 
-    
-     ros::Rate loop_rate(msgsFrequency_Hz); 
-      tf::TransformBroadcaster broadcaster;
-    ros::Duration(0.5).sleep();
-    while(ros::ok() && ros::master::check()==true){
-        ros::spinOnce();
-        loop_rate.sleep();
-
-              for(int i=0; i<foreignTfList.size();i++){ 
-            broadcaster.sendTransform(
-            tf::StampedTransform(pc2.listen(ros::Time::now()+difference,foreignTfList[i].from, foreignTfList[i].to)));
-            
-            }
-    }
+void HFMultimaster::switch_to_host()
+{
+  remappings["__master"] = host_master;
+  ros::master::init(remappings);
 }
 
+void FHMultimaster::switch_to_host()
+{
+  remappings["__master"] = host_master;
+  ros::master::init(remappings);
+}
 
+void HFMultimaster::switch_to_foreign()
+{
+  remappings["__master"] = foreign_master;
+  ros::master::init(remappings);
+}
 
+void FHMultimaster::switch_to_foreign()
+{
+  remappings["__master"] = foreign_master;
+  ros::master::init(remappings);
+}
+
+void HFMultimaster::setupTimekeeper()
+{
+  tkeep->setForeignTime();
+
+  switch_to_host();
+
+  tkeep->setHostTime();
+}
+
+void FHMultimaster::setupTimekeeper()
+{
+  tkeep->setForeignTime();
+
+  switch_to_host();
+
+  tkeep->setHostTime();
+}
+
+void HFMultimaster::setupParam()
+{
+  string foreign_ip_temp;
+  int    foreign_port_temp;
+  // Read ip adress and port of foreign master from the launch file
+  if (!pnh.getParam("foreign_ip", foreign_ip_temp) || foreign_ip_temp == "")
+  {
+    ROS_ERROR("PLEASE SPECIFY THE IP ADRESS OF FOREIGN MASTER IN THE CONFIG FILE");
+    std::terminate();
+  }
+  else if (!pnh.getParam("foreign_port", foreign_port_temp))
+  {
+    ROS_ERROR("PLEASE SPECIFY THE PORT OF FOREIGN MASTER IN THE CONFIG FILE");
+    std::terminate();
+  }
+
+  // Get the other parameters from the launch file
+  pnh.param<double>("msgs_pub_freq", msgs_pub_freq, 10.0);
+
+  // Get the host and foreign master_uri
+  foreign_master = "http://" + foreign_ip_temp + ":" + std::to_string(foreign_port_temp) + "/";
+  host_master = ros::master::getURI();
+}
+
+void FHMultimaster::setupParam()
+{
+  string foreign_ip_temp;
+  int    foreign_port_temp;
+  // Read ip adress and port of foreign master from the launch file
+  if (!pnh.getParam("foreign_ip", foreign_ip_temp) || foreign_ip_temp == "")
+  {
+    ROS_ERROR("PLEASE SPECIFY THE IP ADRESS OF FOREIGN MASTER IN THE CONFIG FILE");
+    std::terminate();
+  }
+  else if (!pnh.getParam("foreign_port", foreign_port_temp))
+  {
+    ROS_ERROR("PLEASE SPECIFY THE PORT OF FOREIGN MASTER IN THE CONFIG FILE");
+    std::terminate();
+  }
+
+  // Get the other parameters from the launch file
+  pnh.param<double>("msgs_pub_freq", msgs_pub_freq, 10.0);
+
+  // Get the host and foreign master_uri
+  foreign_master = "http://" + foreign_ip_temp + ":" + std::to_string(foreign_port_temp) + "/";
+  host_master = ros::master::getURI();
+}
+
+void HFMultimaster::establish_connection()
+{
+  setupTimekeeper();
+
+  manager->setupConfig(pnh);
+  tf_manager->setupConfig(pnh);
+
+  manager->connectToMaster();
+  tf_manager->connectToMaster();
+
+  switch_to_foreign();
+
+  tf_manager->spin(msgs_pub_freq, tkeep->difference());
+  manager->spin(msgs_pub_freq);
+}
+
+void FHMultimaster::establish_connection()
+{
+  setupTimekeeper();
+
+  manager->setupConfig(pnh);
+  tf_manager->setupConfig(pnh);
+
+  switch_to_foreign();
+
+  manager->connectToMaster();
+  tf_manager->connectToMaster();
+
+  switch_to_host();
+
+  tf_manager->spin(msgs_pub_freq, tkeep->difference());
+  manager->spin(msgs_pub_freq);
+}

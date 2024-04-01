@@ -1,2 +1,0 @@
-local_pubs: [scan_rear,scan_front,particlecloud,]
-local_tf: [map->np,np->scan_front_frame,np->scan_rear_frame,map->true_pose,map->odom,]

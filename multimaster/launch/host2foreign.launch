@@ -1,0 +1,5 @@
+<launch>
+    <rosparam subst_value="True" file="$(find multimaster)/config/host2foreign_config.yaml"/>
+
+    <node name="host2foreign" pkg="multimaster" type="host2foreign" output="screen"/>
+</launch>

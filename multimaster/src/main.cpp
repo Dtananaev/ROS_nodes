@@ -1,6 +1,6 @@
 /*
  * 
- *
+ *  License: BSD 2-Clause "Simplified" License
  *  Created on: Februar 23.02.2017
  *      Author: Denis Tananaev
  */
